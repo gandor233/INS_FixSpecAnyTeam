@@ -1,76 +1,74 @@
 /*
- * @Description: 修复mp_forcecamera设置为0后导致服务器崩溃的问题。好用的话Github给颗星吧。
+ * @Description: mp_forcecamera设置为0时，存活玩家不能少于2个。
  * @Author: Gandor233
  * @Github: https://github.com/gandor233
  * @Date: 2022-09-26 14:23:42
- * @LastEditTime: 2022-09-26 15:09:50
+ * @LastEditTime: 2022-09-26 17:21:16
  * @LastEditors: Gandor233
  */
-
 #pragma semicolon 1
-#include <sourcemod>
 
-#define PLUGIN_VERSION "1.0"
+static const char
+    PL_NAME[]	= "[INS] FixSpecAnyTeam",
+    PL_VER[]	= "1.0.2";
 
-public Plugin myinfo = {
-    name = "INS_FixSpecAnyTeam",
-    author = "Gandor233",
-    description = "Fix any team spectator mode crash server bug for insurgency(2014).",
-    version = PLUGIN_VERSION,
-    url = "https://github.com/gandor233/INS_FixSpecAnyTeam"
-};
+ConVar hCamera;
+bool bEnable;
 
-ConVar sm_ins_fsat_version;
-ConVar mp_forcecamera;
-ConVar sm_spec_any_team;
+public Plugin myinfo =
+{
+    name		= PL_NAME,
+    version		= PL_VER,
+    description	= "Fix any team spectator mode crash server bug for insurgency(2014).",
+    author		= "Gandor233 | Grey83",
+    url			= "https://github.com/gandor233/INS_FixSpecAnyTeam"
+}
 
 public void OnPluginStart()
 {
-    sm_ins_fsat_version = CreateConVar("sm_ins_fsat_version", PLUGIN_VERSION, "INS_FixSpecAnyTeam Plugin Version", FCVAR_REPLICATED|FCVAR_NOTIFY);
+    if(!(hCamera = FindConVar("mp_forcecamera")))
+        SetFailState("Unable to find convar 'mp_forcecamera'!");
 
-    mp_forcecamera = FindConVar("mp_forcecamera");
-    sm_spec_any_team = CreateConVar("sm_spec_any_team", "0", "(bool) Enable spec any team");
-    
+    CreateConVar("sm_ins_fsat_version", PL_VER, PL_NAME, FCVAR_DONTRECORD|FCVAR_NOTIFY|FCVAR_SPONLY);
+
+    ConVar cvar = CreateConVar("sm_spec_any_team", "0", "(bool) Enable spec any team", _, true, _, true, 1.0);
+    cvar.AddChangeHook(CVarChange);
+    bEnable = cvar.BoolValue;
+
+    HookEvent("round_end", Event_RoundEndPre, EventHookMode_Pre);
     HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
     HookEvent("player_spawn", Event_SpawnPost, EventHookMode_PostNoCopy);
-    return;
+}
+public void CVarChange(ConVar cvar, const char[] oldValue, const char[] newValue)
+{
+    bEnable = cvar.BoolValue;
 }
 
-public Action Event_PlayerDeathPre(Event event, const char[] name, bool dontBroadcast)
+public void Event_RoundEndPre(Event event, const char[] name, bool dontBroadcast)
 {
-    if (mp_forcecamera.IntValue == 0)
-    {
-        if (GetAlivePlayerCount() <= 1)
-            mp_forcecamera.IntValue = 1;
-    }
-    return Plugin_Continue;
+    if (!hCamera.IntValue) hCamera.IntValue = 1;
+}
+public void Event_PlayerDeathPre(Event event, const char[] name, bool dontBroadcast)
+{
+    if(!hCamera.IntValue && GetAlivePlayerCount() <= 2) hCamera.IntValue = 1;
+}
+public void OnClientDisconnect(int client)
+{
+    if (!hCamera.IntValue && GetAlivePlayerCount() <= 2)  hCamera.IntValue = 1;
 }
 
 public void Event_SpawnPost(Event event, const char[] name, bool dontBroadcast)
 {
-    RequestFrame(OnPlayerSpawnPost);
-    return;
+    if(bEnable) RequestFrame(OnPlayerSpawnPost);
 }
-void OnPlayerSpawnPost()
+public void OnPlayerSpawnPost()
 {
-    if (sm_spec_any_team.BoolValue)
-    {
-        if (GetAlivePlayerCount() > 0)
-            mp_forcecamera.IntValue = 0;
-    }
-    return;
+    if(GetAlivePlayerCount() > 2) hCamera.IntValue = 0;
 }
 
-int GetAlivePlayerCount()
+stock int GetAlivePlayerCount()
 {
-    int iPlayerCount = 0;
-    for (int client = 1; client <= MaxClients; client++)
-    {
-        if (IsClientInGame(client))
-        {
-            if (IsPlayerAlive(client))
-                iPlayerCount++;
-        }
-    }
-    return iPlayerCount;
+    int num;
+    for(int i = 1; i <= MaxClients; i++) if(IsClientInGame(i) && IsPlayerAlive(i)) num++;
+    return num;
 }
