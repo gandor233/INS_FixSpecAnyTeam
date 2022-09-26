@@ -3,7 +3,7 @@
  * @Author: Gandor233
  * @Github: https://github.com/gandor233
  * @Date: 2022-09-26 14:23:42
- * @LastEditTime: 2022-09-26 14:51:27
+ * @LastEditTime: 2022-09-26 15:09:50
  * @LastEditors: Gandor233
  */
 
@@ -51,7 +51,7 @@ public void Event_SpawnPost(Event event, const char[] name, bool dontBroadcast)
     RequestFrame(OnPlayerSpawnPost);
     return;
 }
-public void OnPlayerSpawnPost()
+void OnPlayerSpawnPost()
 {
     if (sm_spec_any_team.BoolValue)
     {
@@ -61,7 +61,7 @@ public void OnPlayerSpawnPost()
     return;
 }
 
-stock int GetAlivePlayerCount()
+int GetAlivePlayerCount()
 {
     int iPlayerCount = 0;
     for (int client = 1; client <= MaxClients; client++)
